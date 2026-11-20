@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisis NVIDIA - Presentasi 3D Interaktif</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        nvGreen: '#76B900',
+                        nvDark: '#0b0f12',
+                        nvCard: 'rgba(18, 26, 33, 0.75)',
+                        nvCardBorder: 'rgba(118, 185, 0, 0.25)',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Chart.js CDN for Financial History Chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0f12;
+            color: #f3f4f6;
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Canvas Background */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: auto;
+        }
+
+        /* Glassmorphism Cards */
+        .glass-panel {
+            background: rgba(15, 23, 30, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(118, 185, 0, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-panel:hover {
+            border-color: rgba(118, 185, 0, 0.5);
+            box-shadow: 0 8px 32px 0 rgba(118, 185, 0, 0.15);
+        }
+
+        /* Transition Overlay for 2-second delay without numbers */
+        #transition-overlay {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle, rgba(118,185,0,0.15) 0%, rgba(11,15,18,0.95) 80%);
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 1s ease-in-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #transition-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        /* Custom Loader Spinner for delay effect */
+        .cyber-spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid transparent;
+            border-top-color: #76B900;
+            border-bottom-color: #76B900;
+            border-radius: 50%;
+            animation: spin 1.2s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.15); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+
+        /* Glowing Text Effects */
+        .glow-text {
+            text-shadow: 0 0 12px rgba(118, 185, 0, 0.6);
+        }
+
+        .glow-btn {
+            box-shadow: 0 0 20px rgba(118, 185, 0, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .glow-btn:hover {
+            box-shadow: 0 0 35px rgba(118, 185, 0, 0.8);
+            transform: translateY(-2px);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b0f12;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #76B900;
+            border-radius: 3px;
+        }
+
+        .tab-btn.active {
+            background-color: rgba(118, 185, 0, 0.2);
+            border-color: #76B900;
+            color: #76B900;
+            font-weight: 600;
+        }
+
+        /* 3D Dynamic Card Effects */
+        .column-card {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            perspective: 1000px;
+        }
+
+        .column-card:hover {
+            transform: translateY(-10px) scale(1.03) rotateX(4deg);
+            box-shadow: 0 15px 35px rgba(118, 185, 0, 0.35);
+            border-color: #76B900;
+        }
+
+        /* Modal Overlay Visual Effect */
+        .modal-blur {
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        /* Pulsing ring for WOW effect */
+        .cyber-ring {
+            box-shadow: 0 0 0 0 rgba(118, 185, 0, 0.7);
+            animation: ringPulse 2s infinite;
+        }
+
+        @keyframes ringPulse {
+            0% { box-shadow: 0 0 0 0 rgba(118, 185, 0, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(118, 185, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(118, 185, 0, 0); }
+        }
+    </style>
+</head>
+<body class="bg-nvDark text-gray-100 min-h-screen flex flex-col justify-between selection:bg-nvGreen selection:text-black">
+
+    <!-- 3D Background Canvas -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Transition Loading Overlay (2 Seconds Delay Visualizer) -->
+    <div id="transition-overlay">
+        <div class="flex flex-col items-center gap-4">
+            <div class="cyber-spinner"></div>
+            <p class="text-xs uppercase tracking-widest text-nvGreen font-mono animate-pulse">MEMUAT MODUL ANALISIS...</p>
+        </div>
+    </div>
+
+    <!-- UI Overlay Wrapper -->
+    <div class="relative z-10 flex flex-col min-h-screen">
+
+        <!-- LOBBY / COVER SECTION -->
+        <section id="lobby-section" class="min-h-screen flex flex-col justify-center items-center px-4 text-center transition-opacity duration-1000 py-10">
+            <div class="max-w-4xl mx-auto space-y-5">
+
+                <!-- 3D INTERACTIVE NVIDIA AI CHIP ILLUSTRATION -->
+                <div class="relative mx-auto w-60 h-60 sm:w-72 sm:h-72 flex items-center justify-center group">
+                    <!-- Ambient Green Aura Glow -->
+                    <div class="absolute inset-4 rounded-full bg-nvGreen/20 blur-2xl group-hover:bg-nvGreen/30 transition-all duration-500 animate-pulse"></div>
+                    <!-- Rotating Decorative HUD Ring -->
+                    <div class="absolute inset-2 rounded-full border border-dashed border-nvGreen/35 animate-[spin_25s_linear_infinite] pointer-events-none"></div>
+                    <div class="absolute inset-6 rounded-full border border-nvGreen/20 animate-[spin_18s_linear_infinite_reverse] pointer-events-none"></div>
+                    
+                    <!-- 3D Chip Canvas -->
+                    <canvas id="lobby-chip-canvas" class="relative z-10 w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+                    
+                    <!-- Floating Chip Spec Badge -->
+                    <div class="absolute -bottom-1 z-20 px-3 py-1 rounded-full bg-nvDark/90 border border-nvGreen/40 text-[10px] font-mono text-nvGreen tracking-widest uppercase shadow-lg flex items-center gap-1.5 pointer-events-none">
+                        <span class="w-1.5 h-1.5 rounded-full bg-nvGreen animate-ping"></span>
+                        <span>NVIDIA BLACKWELL AI ARCHITECTURE</span>
+                    </div>
+                </div>
+
+                <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight text-white glow-text leading-tight">
+                    ANALISIS <span class="text-nvGreen">NVIDIA</span>
+                </h1>
+
+                <p class="text-gray-300 max-w-2xl mx-auto text-base md:text-lg leading-relaxed font-light">
+                    Eksplorasi mendalam strategi teknologi, profil ekosistem AI, struktur finansial, hingga simulasi rasio keuangan Nvidia Corporation.
+                </p>
+
+                <!-- PLAY / ENTER BUTTON -->
+                <div class="pt-4">
+                    <button id="btn-enter" onclick="triggerTransition('portal-section')" class="glow-btn bg-nvGreen hover:bg-[#88d200] text-black font-bold py-4 px-10 rounded-full text-lg tracking-wide flex items-center gap-3 mx-auto group">
+                        <span>MASUK PORTAL ANALISIS</span>
+                        <i class="fa-solid fa-play transition-transform group-hover:translate-x-1"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- MAIN PRESENTATION PORTAL (GRID KOLOM DISPLAY) -->
+        <div id="portal-section" class="hidden min-h-screen flex flex-col">
+
+            <!-- NAVIGATION BAR -->
+            <header class="sticky top-0 z-50 glass-panel border-b border-nvGreen/20 px-6 py-4">
+                <div class="max-w-7xl mx-auto flex items-center justify-between">
+                    <!-- Brand -->
+                    <div class="flex items-center gap-3 cursor-pointer" onclick="triggerTransition('lobby-section')">
+                        <i class="fa-brands fa-nvidia text-3xl text-nvGreen"></i>
+                        <span class="font-bold text-xl tracking-wider text-white">NVIDIA <span class="text-nvGreen text-xs px-2 py-0.5 rounded bg-nvGreen/20">PORTAL ANALISIS</span></span>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <button onclick="triggerTransition('lobby-section')" class="text-xs text-gray-400 hover:text-nvGreen flex items-center gap-2 border border-gray-700 hover:border-nvGreen px-3 py-1.5 rounded-lg transition-all">
+                            <i class="fa-solid fa-house"></i> Kembali ke Lobby
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- MAIN COLUMN GRID CONTAINER -->
+            <main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-8 flex flex-col justify-center">
+
+                <div class="text-center mb-8 space-y-2">
+                    <h2 class="text-3xl font-extrabold text-white tracking-tight">KATEGORI ANALISIS</h2>
+                    <p class="text-xs text-nvGreen tracking-widest uppercase font-mono">Pilih Kolom Untuk Membuka Rincian Materi</p>
+                </div>
+
+                <!-- 6 KOLOM NAVIGATION GRID -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                    <!-- KOLOM 1: Latar Belakang -->
+                    <div onclick="openModule('modal-latar')" class="column-card glass-panel p-6 rounded-2xl cursor-pointer border border-nvGreen/30 relative overflow-hidden group flex flex-col justify-between h-56">
+                        <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <i class="fa-solid fa-bullseye text-9xl text-nvGreen"></i>
+                        </div>
+                        <div>
+                            <div class="w-12 h-12 rounded-xl bg-nvGreen/10 border border-nvGreen/30 flex items-center justify-center text-nvGreen text-xl mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-bullseye"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-white group-hover:text-nvGreen transition-colors">1. Latar Belakang & Tujuan</h3>
+                            <p class="text-xs text-gray-400 mt-2">Visi komputasi akselerasi & pemrosesan AI masa depan.</p>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-nvGreen font-semibold pt-4 border-t border-gray-800">
+                            <span>Buka Modul</span>
+                            <i class="fa-solid fa-arrow-right group-hover:translate-x-2 transition-transform"></i>
+                        </div>
+                    </div>
+
+                    <!-- KOLOM 2: Profil Perusahaan -->
+                    <div onclick="openModule('modal-profil')" class="column-card glass-panel p-6 rounded-2xl cursor-pointer border border-nvGreen/30 relative overflow-hidden group flex flex-col justify-between h-56">
+                        <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <i class="fa-solid fa-landmark text-9xl text-nvGreen"></i>
+                        </div>
+                        <div>
+                            <div class="w-12 h-12 rounded-xl bg-nvGreen/10 border border-nvGreen/30 flex items-center justify-center text-nvGreen text-xl mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-landmark"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-white group-hover:text-nvGreen transition-colors">2. Profil Perusahaan</h3>
+                            <p class="text-xs text-gray-400 mt-2">Sejarah 1993, profil CEO Jensen Huang & arsitektur chip.</p>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-nvGreen font-semibold pt-4 border-t border-gray-800">
+                            <span>Buka Modul</span>
+                            <i class="fa-solid fa-arrow-right group-hover:translate-x-2 transition-transform"></i>
+                        </div>
+                    </div>
+
+                    <!-- KOLOM 3: Laporan Keuangan -->
+                    <div onclick="openModule('modal-keuangan')" class="column-card glass-panel p-6 rounded-2xl cursor-pointer border border-nvGreen/30 relative overflow-hidden group flex flex-col justify-between h-56">
+                        <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <i class="fa-solid fa-file-invoice-dollar text-9xl text-nvGreen"></i>
+                        </div>
+                        <div>
+                            <div class="w-12 h-12 rounded-xl bg-nvGreen/10 border border-nvGreen/30 flex items-center justify-center text-nvGreen text-xl mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-calculator"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-white group-hover:text-nvGreen transition-colors">3. Laporan Keuangan</h3>
+                            <p class="text-xs text-gray-400 mt-2">Data konsolidasi bersih untuk kalkulasi ROA, ROE, ROI, NPM, & GPM.</p>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-nvGreen font-semibold pt-4 border-t border-gray-800">
+                            <span>Buka Modul</span>
+                            <i class="fa-solid fa-arrow-right group-hover:translate-x-2 transition-transform"></i>
+                        </div>
+                    </div>
+
+                    <!-- KOLOM 4: Strategi & Lingkungan -->
+                    <div onclick="openModule('modal-strategi')" class="column-card glass-panel p-6 rounded-2xl cursor-pointer border border-nvGreen/30 relative overflow-hidden group flex flex-col justify-between h-56">
+                        <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <i class="fa-solid fa-leaf text-9xl text-nvGreen"></i>
+                        </div>
+                        <div>
+                            <div class="w-12 h-12 rounded-xl bg-nvGreen/10 border border-nvGreen/30 flex items-center justify-center text-nvGreen text-xl mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-leaf"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-white group-hover:text-nvGreen transition-colors">4. Strategi & Lingkungan</h3>
+                            <p class="text-xs text-gray-400 mt-2">Pilar produk ekosistem & target efisiensi energi per watt.</p>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-nvGreen font-semibold pt-4 border-t border-gray-800">
+                            <span>Buka Modul</span>
+                            <i class="fa-solid fa-arrow-right group-hover:translate-x-2 transition-transform"></i>
+                        </div>
+                    </div>
+
+                    <!-- KOLOM 5: Risiko & Solusi -->
+                    <div onclick="openModule('modal-risiko')" class="column-card glass-panel p-6 rounded-2xl cursor-pointer border border-nvGreen/30 relative overflow-hidden group flex flex-col justify-between h-56">
+                        <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <i class="fa-solid fa-shield-halved text-9xl text-nvGreen"></i>
+                        </div>
+                        <div>
+                            <div class="w-12 h-12 rounded-xl bg-nvGreen/10 border border-nvGreen/30 flex items-center justify-center text-nvGreen text-xl mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-white group-hover:text-nvGreen transition-colors">5. Risiko & Solusi</h3>
+                            <p class="text-xs text-gray-400 mt-2">Analisis ketergantungan TSMC, geopolitik, & strategi pencegahan.</p>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-nvGreen font-semibold pt-4 border-t border-gray-800">
+                            <span>Buka Modul</span>
+                            <i class="fa-solid fa-arrow-right group-hover:translate-x-2 transition-transform"></i>
+                        </div>
+                    </div>
+
+                    <!-- KOLOM 6: Market Live -->
+                    <div onclick="openModule('modal-chart')" class="column-card glass-panel p-6 rounded-2xl cursor-pointer border border-nvGreen/30 relative overflow-hidden group flex flex-col justify-between h-56 cyber-ring">
+                        <div class="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <i class="fa-solid fa-chart-line text-9xl text-nvGreen"></i>
+                        </div>
+                        <div>
+                            <div class="w-12 h-12 rounded-xl bg-nvGreen/10 border border-nvGreen/30 flex items-center justify-center text-nvGreen text-xl mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-chart-line"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-white group-hover:text-nvGreen transition-colors">6. Market Live</h3>
+                            <p class="text-xs text-gray-400 mt-2">Grafik saham realtime NASDAQ:NVDA via TradingView.</p>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-nvGreen font-semibold pt-4 border-t border-gray-800">
+                            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-nvGreen animate-ping"></span> Live Market</span>
+                            <i class="fa-solid fa-arrow-right group-hover:translate-x-2 transition-transform"></i>
+                        </div>
+                    </div>
+
+                </div>
+
+            </main>
+
+            <!-- FOOTER -->
+            <footer class="glass-panel border-t border-nvGreen/20 py-4 text-center text-sm font-semibold text-nvGreen tracking-wider">
+                <p>Terimakasih Banyak</p>
+            </footer>
+
+        </div>
+
+        <!-- MODAL POPUP CONTAINERS (ISI MATERI MASING-MASING KOLOM) -->
+        
+        <!-- MODAL 1: LATAR BELAKANG -->
+        <div id="modal-latar" class="fixed inset-0 z-50 hidden modal-blur bg-black/80 flex items-center justify-center p-4">
+            <div class="glass-panel max-w-4xl w-full p-6 md:p-8 rounded-2xl border border-nvGreen/50 space-y-6 max-h-[90vh] overflow-y-auto relative">
+                <button onclick="closeModal('modal-latar')" class="absolute top-4 right-4 text-gray-400 hover:text-nvGreen text-2xl z-10"><i class="fa-solid fa-xmark"></i></button>
+                
+                <div class="border-b border-gray-700/50 pb-4">
+                    <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-bullseye text-nvGreen"></i> 1. Latar Belakang & Tujuan
+                    </h2>
+                </div>
+
+                <!-- 3D VISUAL CANVAS GEDUNG NVIDIA HEADQUARTERS -->
+                <div class="relative w-full h-56 md:h-64 rounded-xl overflow-hidden border border-nvGreen/30 bg-nvDark/90 flex items-center justify-center group">
+                    <canvas id="latar-3d-canvas" class="w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+                    <div class="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-lg border border-nvGreen/30 text-[11px] text-nvGreen flex items-center gap-2 pointer-events-none">
+                        <i class="fa-solid fa-building-user animate-pulse"></i> Visual 3D Markas Utama (NVIDIA Headquarters)
+                    </div>
+                </div>
+
+                <!-- WALLPAPER GAMBAR EKSOSISTEM & AKTIVITAS PERUSAHAAN NVIDIA -->
+                <div class="relative w-full h-48 md:h-56 rounded-xl overflow-hidden border border-nvGreen/30 group">
+                    <img src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1200&q=80" alt="Aktivitas Riset & Inovasi Perusahaan NVIDIA" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src='https://placehold.co/1200x500/121a21/76B900?text=Aktivitas+Riset+NVIDIA'">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex items-end p-4">
+                        <div class="space-y-1">
+                            <span class="text-[10px] bg-nvGreen text-black font-bold px-2 py-0.5 rounded uppercase tracking-wider">Aktivitas Inovasi & Riset</span>
+                            <h4 class="text-sm font-bold text-white">Pengembangan Ekosistem Komputasi AI & Superkomputer NVIDIA</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="text-gray-300 text-sm leading-relaxed">
+                    NVIDIA bertransformasi dari sekadar produsen chip grafis video game menjadi motor penggerak revolusi AI global. Tujuan utamanya adalah menyediakan akselerasi komputasi tingkat tinggi untuk kecerdasan buatan, visualisasi 3D, dan pemrosesan data masif.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-panel p-5 rounded-xl text-center space-y-3 flex flex-col items-center">
+                        <div class="w-16 h-16 rounded-full bg-nvGreen/10 flex items-center justify-center text-nvGreen text-2xl border border-nvGreen/30">
+                            <i class="fa-solid fa-microchip"></i>
+                        </div>
+                        <h3 class="font-bold text-white">Akselerasi GPU</h3>
+                        <p class="text-xs text-gray-400">Pemrosesan paralel performa tinggi yang memangkas waktu latih model AI dari hitungan bulan menjadi hitungan hari.</p>
+                    </div>
+
+                    <div class="glass-panel p-5 rounded-xl text-center space-y-3 flex flex-col items-center">
+                        <div class="w-16 h-16 rounded-full bg-nvGreen/10 flex items-center justify-center text-nvGreen text-2xl border border-nvGreen/30">
+                            <i class="fa-solid fa-brain"></i>
+                        </div>
+                        <h3 class="font-bold text-white">Ekosistem CUDA</h3>
+                        <p class="text-xs text-gray-400">Platform perangkat lunak proprietary yang mengunci loyalitas pengembang AI global di seluruh dunia.</p>
+                    </div>
+
+                    <div class="glass-panel p-5 rounded-xl text-center space-y-3 flex flex-col items-center">
+                        <div class="w-16 h-16 rounded-full bg-nvGreen/10 flex items-center justify-center text-nvGreen text-2xl border border-nvGreen/30">
+                            <i class="fa-solid fa-network-wired"></i>
+                        </div>
+                        <h3 class="font-bold text-white">Pusat Data AI</h3>
+                        <p class="text-xs text-gray-400">Penyedia infrastruktur superkomputer untuk raksasa teknologi seperti Microsoft, Google, Meta, dan OpenAI.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 2: PROFIL PERUSAHAAN -->
+        <div id="modal-profil" class="fixed inset-0 z-50 hidden modal-blur bg-black/80 flex items-center justify-center p-4">
+            <div class="glass-panel max-w-4xl w-full p-6 md:p-8 rounded-2xl border border-nvGreen/50 space-y-6 max-h-[90vh] overflow-y-auto relative">
+                <button onclick="closeModal('modal-profil')" class="absolute top-4 right-4 text-gray-400 hover:text-nvGreen text-2xl"><i class="fa-solid fa-xmark"></i></button>
+
+                <div class="border-b border-gray-700/50 pb-4 flex items-center justify-between">
+                    <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-landmark text-nvGreen"></i> 2. Profil Perusahaan
+                    </h2>
+                </div>
+
+                <!-- Gambar Kantor NVIDIA Headquarters -->
+                <div class="relative w-full h-44 rounded-xl overflow-hidden border border-nvGreen/30 group">
+                    <img src="https://images.unsplash.com/photo-1554469384-e58fac16e23a?auto=format&fit=crop&w=1000&q=80" alt="NVIDIA Headquarters Building" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex items-end p-4">
+                        <div>
+                            <span class="text-[10px] bg-nvGreen text-black font-bold px-2 py-0.5 rounded uppercase tracking-wider">Markas Utama</span>
+                            <h4 class="text-sm font-bold text-white">NVIDIA HQ - Santa Clara, California</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-panel p-5 rounded-xl space-y-4">
+                        <div class="flex items-center gap-3 border-b border-gray-700/50 pb-3">
+                            <i class="fa-solid fa-landmark text-2xl text-nvGreen"></i>
+                            <div>
+                                <h3 class="font-bold text-white text-sm">Sejarah Singkat</h3>
+                                <p class="text-[10px] text-gray-400">Berdiri: 5 April 1993</p>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-300 leading-relaxed">
+                            Didirikan di Santa Clara, California oleh Jensen Huang, Chris Malachowsky, dan Curtis Priem. Nvidia mengawali revolusi industri dengan meluncurkan GPU pertama di dunia (GeForce 256) pada tahun 1999.
+                        </p>
+                    </div>
+
+                    <!-- Profil CEO Jensen Huang dengan Foto Asli Time Magazine -->
+                    <div class="glass-panel p-5 rounded-xl flex flex-col items-center text-center justify-between">
+                        <div class="w-24 h-24 rounded-full bg-gradient-to-tr from-nvGreen to-emerald-900 p-1 mb-2 shadow-lg shadow-nvGreen/20 overflow-hidden">
+                            <img src="https://static.time.com/v3/assets/bltea6093859af6183b/blt1840127ba1881726/6998cc3f83ec374961c7b32c/time-AI-Jensen-Huang-homepage.jpg?branch=production&width=3840&quality=75&auto=webp&crop=4%3A5" alt="Jensen Huang CEO" class="w-full h-full rounded-full object-cover border-2 border-nvDark" onerror="this.src='https://placehold.co/150x150/121a21/76B900?text=Jensen+Huang'">
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white text-sm">Jensen Huang</h3>
+                            <p class="text-xs text-nvGreen font-semibold">Co-Founder & CEO</p>
+                            <p class="text-[10px] text-gray-400 mt-2 italic">
+                                "Komputasi akselerasi dan AI adalah fondasi baru dari seluruh industri perangkat lunak dunia."
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-5 rounded-xl space-y-4 flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-bold text-white text-sm mb-2 flex items-center gap-2">
+                                <i class="fa-solid fa-microchip text-nvGreen"></i> Arsitektur Chip
+                            </h3>
+                            <p class="text-xs text-gray-300 leading-relaxed">
+                                NVIDIA merancang arsitektur H100, Blackwell B200, dan DGX SuperPOD yang menjadi standar emas akselerator Large Language Models (LLM).
+                            </p>
+                        </div>
+                        <div class="bg-gradient-to-r from-nvGreen/20 to-transparent p-3 rounded-xl border border-nvGreen/30 text-center">
+                            <div class="text-xs font-bold text-white uppercase tracking-wider">Blackwell B200</div>
+                            <div class="text-[10px] text-gray-400 mt-0.5">208 Miliar Transistor</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 3: LAPORAN KEUANGAN -->
+        <div id="modal-keuangan" class="fixed inset-0 z-50 hidden modal-blur bg-black/80 flex items-center justify-center p-4">
+            <div class="glass-panel max-w-5xl w-full p-6 md:p-8 rounded-2xl border border-nvGreen/50 space-y-6 max-h-[90vh] overflow-y-auto relative">
+                <button onclick="closeModal('modal-keuangan')" class="absolute top-4 right-4 text-gray-400 hover:text-nvGreen text-2xl"><i class="fa-solid fa-xmark"></i></button>
+
+                <div class="border-b border-gray-700/50 pb-4 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-calculator text-nvGreen"></i> 3. Laporan Keuangan Konsolidasi
+                        </h2>
+                        <p class="text-xs text-gray-400 mt-1">Rekam jejak pertumbuhan finansial NVIDIA dari awal berdiri hingga era AI superkomputer.</p>
+                    </div>
+                </div>
+
+                <!-- HISTORICAL FINANCIAL CHART (AWAL DIBENTUK HINGGA KINI) -->
+                <div class="glass-panel p-4 rounded-xl border border-nvGreen/30 space-y-2">
+                    <div class="flex items-center justify-between px-2">
+                        <span class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-chart-column text-nvGreen"></i> Grafik Tren Finansial Historis (1999 – Sekarang)
+                        </span>
+                        <span class="text-[10px] text-nvGreen bg-nvGreen/10 px-2 py-0.5 rounded border border-nvGreen/20">Dalam Jutaan USD</span>
+                    </div>
+                    <div class="w-full h-64 md:h-72">
+                        <canvas id="financialChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs md:text-sm text-gray-300">
+                        <thead class="bg-nvDark/80 text-nvGreen uppercase font-semibold border-b border-nvGreen/30">
+                            <tr>
+                                <th class="p-3">Komponen Laporan Keuangan</th>
+                                <th class="p-3 text-right">FY 2023</th>
+                                <th class="p-3 text-right">FY 2024</th>
+                                <th class="p-3 text-right">FY 2025 (Est/TTM)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800">
+                            <tr class="hover:bg-nvGreen/5">
+                                <td class="p-3 font-medium text-white">Pendapatan Bersih (Revenue)</td>
+                                <td class="p-3 text-right">$26,974</td>
+                                <td class="p-3 text-right text-nvGreen font-semibold">$60,922</td>
+                                <td class="p-3 text-right text-nvGreen font-bold">$126,000</td>
+                            </tr>
+                            <tr class="hover:bg-nvGreen/5">
+                                <td class="p-3 font-medium text-white">Laba Kotor (Gross Profit)</td>
+                                <td class="p-3 text-right">$15,356</td>
+                                <td class="p-3 text-right">$44,301</td>
+                                <td class="p-3 text-right">$94,500</td>
+                            </tr>
+                            <tr class="hover:bg-nvGreen/5">
+                                <td class="p-3 font-medium text-white">Laba Operasional (Operating Income)</td>
+                                <td class="p-3 text-right">$4,224</td>
+                                <td class="p-3 text-right">$32,972</td>
+                                <td class="p-3 text-right">$75,000</td>
+                            </tr>
+                            <tr class="hover:bg-nvGreen/5">
+                                <td class="p-3 font-medium text-white">Laba Bersih (Net Income)</td>
+                                <td class="p-3 text-right">$4,368</td>
+                                <td class="p-3 text-right text-nvGreen font-semibold">$29,760</td>
+                                <td class="p-3 text-right text-nvGreen font-bold">$67,000</td>
+                            </tr>
+                            <tr class="hover:bg-nvGreen/5">
+                                <td class="p-3 font-medium text-white">Total Aset (Total Assets)</td>
+                                <td class="p-3 text-right">$41,182</td>
+                                <td class="p-3 text-right">$65,728</td>
+                                <td class="p-3 text-right">$110,000</td>
+                            </tr>
+                            <tr class="hover:bg-nvGreen/5">
+                                <td class="p-3 font-medium text-white">Total Ekuitas (Total Equity)</td>
+                                <td class="p-3 text-right">$22,101</td>
+                                <td class="p-3 text-right">$42,978</td>
+                                <td class="p-3 text-right">$78,000</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- INTERACTIVE FINANCIAL RATIO SIMULATOR (ROA, ROE, ROI, NPM, GPM) -->
+                <div class="glass-panel p-5 rounded-xl border border-nvGreen/30 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-800 pb-3">
+                        <div>
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-sliders text-nvGreen"></i> Simulasi Kalkulator Rasio Keuangan Interaktif
+                            </h3>
+                            <p class="text-[11px] text-gray-400">Pilih periode tahun atau sesuaikan nilai untuk menghitung ROA, ROE, ROI, NPM, dan GPM secara otomatis.</p>
+                        </div>
+                        <div class="flex gap-1.5">
+                            <button onclick="loadRatioPreset('2023')" class="px-2.5 py-1 rounded bg-gray-800 hover:bg-nvGreen/20 hover:text-nvGreen text-[11px] font-semibold border border-gray-700 transition-all">FY 2023</button>
+                            <button onclick="loadRatioPreset('2024')" class="px-2.5 py-1 rounded bg-gray-800 hover:bg-nvGreen/20 hover:text-nvGreen text-[11px] font-semibold border border-gray-700 transition-all">FY 2024</button>
+                            <button onclick="loadRatioPreset('2025')" class="px-2.5 py-1 rounded bg-nvGreen/20 text-nvGreen text-[11px] font-semibold border border-nvGreen/50 transition-all">FY 2025</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+                        <div>
+                            <label class="text-[10px] text-gray-400 block mb-1">Revenue ($M)</label>
+                            <input type="number" id="sim-revenue" value="126000" oninput="calculateRatios()" class="w-full bg-nvDark border border-gray-700 focus:border-nvGreen rounded-lg px-2.5 py-1.5 text-white font-mono outline-none">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-400 block mb-1">Gross Profit ($M)</label>
+                            <input type="number" id="sim-gross" value="94500" oninput="calculateRatios()" class="w-full bg-nvDark border border-gray-700 focus:border-nvGreen rounded-lg px-2.5 py-1.5 text-white font-mono outline-none">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-400 block mb-1">Net Income ($M)</label>
+                            <input type="number" id="sim-net" value="67000" oninput="calculateRatios()" class="w-full bg-nvDark border border-gray-700 focus:border-nvGreen rounded-lg px-2.5 py-1.5 text-white font-mono outline-none">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-400 block mb-1">Total Assets ($M)</label>
+                            <input type="number" id="sim-assets" value="110000" oninput="calculateRatios()" class="w-full bg-nvDark border border-gray-700 focus:border-nvGreen rounded-lg px-2.5 py-1.5 text-white font-mono outline-none">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-400 block mb-1">Total Equity ($M)</label>
+                            <input type="number" id="sim-equity" value="78000" oninput="calculateRatios()" class="w-full bg-nvDark border border-gray-700 focus:border-nvGreen rounded-lg px-2.5 py-1.5 text-white font-mono outline-none">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-1">
+                        <div class="bg-nvDark/80 p-3 rounded-xl border border-nvGreen/25 text-center">
+                            <div class="text-[10px] text-gray-400 uppercase">ROA</div>
+                            <div id="res-roa" class="text-lg font-extrabold text-nvGreen mt-0.5">60.91%</div>
+                            <div class="text-[9px] text-gray-500">Net / Assets</div>
+                        </div>
+                        <div class="bg-nvDark/80 p-3 rounded-xl border border-nvGreen/25 text-center">
+                            <div class="text-[10px] text-gray-400 uppercase">ROE</div>
+                            <div id="res-roe" class="text-lg font-extrabold text-nvGreen mt-0.5">85.90%</div>
+                            <div class="text-[9px] text-gray-500">Net / Equity</div>
+                        </div>
+                        <div class="bg-nvDark/80 p-3 rounded-xl border border-nvGreen/25 text-center">
+                            <div class="text-[10px] text-gray-400 uppercase">ROI (Est)</div>
+                            <div id="res-roi" class="text-lg font-extrabold text-nvGreen mt-0.5">73.40%</div>
+                            <div class="text-[9px] text-gray-500">Return on Inv.</div>
+                        </div>
+                        <div class="bg-nvDark/80 p-3 rounded-xl border border-nvGreen/25 text-center">
+                            <div class="text-[10px] text-gray-400 uppercase">NPM</div>
+                            <div id="res-npm" class="text-lg font-extrabold text-sky-400 mt-0.5">53.17%</div>
+                            <div class="text-[9px] text-gray-500">Net / Revenue</div>
+                        </div>
+                        <div class="bg-nvDark/80 p-3 rounded-xl border border-nvGreen/25 text-center col-span-2 sm:col-span-1">
+                            <div class="text-[10px] text-gray-400 uppercase">GPM</div>
+                            <div id="res-gpm" class="text-lg font-extrabold text-sky-400 mt-0.5">75.00%</div>
+                            <div class="text-[9px] text-gray-500">Gross / Revenue</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 4: STRATEGI PRODUK -->
+        <div id="modal-strategi" class="fixed inset-0 z-50 hidden modal-blur bg-black/80 flex items-center justify-center p-4">
+            <div class="glass-panel max-w-5xl w-full p-6 md:p-8 rounded-2xl border border-nvGreen/50 space-y-6 max-h-[90vh] overflow-y-auto relative">
+                <button onclick="closeModal('modal-strategi')" class="absolute top-4 right-4 text-gray-400 hover:text-nvGreen text-2xl"><i class="fa-solid fa-xmark"></i></button>
+
+                <div class="border-b border-gray-700/50 pb-4">
+                    <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-leaf text-nvGreen"></i> 4. Strategi & Efisiensi Lingkungan
+                    </h2>
+                    <p class="text-xs text-gray-400 mt-1">Eksplorasi simulasi visual interaktif pada 4 pilar utama lini teknologi NVIDIA.</p>
+                </div>
+
+                <!-- GRID 4 KARTU MODEL INTERAKTIF -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    
+                    <!-- KARTU 1: DATA CENTER AI -->
+                    <div class="glass-panel p-4 rounded-xl space-y-3 flex flex-col justify-between border border-nvGreen/25 hover:border-nvGreen/60 transition-all group">
+                        <div>
+                            <div class="relative w-full h-40 rounded-lg overflow-hidden border border-gray-700/60 mb-3 bg-nvDark/90 flex items-center justify-center">
+                                <canvas id="strategi-3d-1" class="w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+                                <span class="absolute bottom-2 left-2 text-[9px] bg-black/70 text-nvGreen px-1.5 py-0.5 rounded border border-nvGreen/30 font-mono">Server Rack</span>
+                            </div>
+                            <h3 class="font-bold text-white text-sm">Pusat Data AI & Cloud</h3>
+                            <ul class="text-[11px] text-gray-300 space-y-1 mt-2 list-disc list-inside">
+                                <li>Superkomputer DGX & H100/B200.</li>
+                                <li>Fokus pada LLM & Generative AI.</li>
+                                <li>Pemasok utama Big Tech.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- KARTU 2: GAMING & CLIENT PC -->
+                    <div class="glass-panel p-4 rounded-xl space-y-3 flex flex-col justify-between border border-nvGreen/25 hover:border-nvGreen/60 transition-all group">
+                        <div>
+                            <div class="relative w-full h-40 rounded-lg overflow-hidden border border-gray-700/60 mb-3 bg-nvDark/90 flex items-center justify-center">
+                                <canvas id="strategi-3d-2" class="w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+                                <span class="absolute bottom-2 left-2 text-[9px] bg-black/70 text-nvGreen px-1.5 py-0.5 rounded border border-nvGreen/30 font-mono">RTX GPU</span>
+                            </div>
+                            <h3 class="font-bold text-white text-sm">GeForce Gaming RTX</h3>
+                            <ul class="text-[11px] text-gray-300 space-y-1 mt-2 list-disc list-inside">
+                                <li>Lini GPU konsumer terpopuler.</li>
+                                <li>Fitur Ray Tracing real-time.</li>
+                                <li>DLSS AI Frame Generation.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- KARTU 3: EFISIENSI DAYA -->
+                    <div class="glass-panel p-4 rounded-xl space-y-3 flex flex-col justify-between border border-nvGreen/25 hover:border-nvGreen/60 transition-all group">
+                        <div>
+                            <div class="relative w-full h-40 rounded-lg overflow-hidden border border-gray-700/60 mb-3 bg-nvDark/90 flex items-center justify-center">
+                                <canvas id="strategi-3d-3" class="w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+                                <span class="absolute bottom-2 left-2 text-[9px] bg-black/70 text-nvGreen px-1.5 py-0.5 rounded border border-nvGreen/30 font-mono">Green Core</span>
+                            </div>
+                            <h3 class="font-bold text-white text-sm">Efisiensi Per Watt</h3>
+                            <ul class="text-[11px] text-gray-300 space-y-1 mt-2 list-disc list-inside">
+                                <li>25x lebih hemat dibanding CPU.</li>
+                                <li>Menekan jejak karbon server.</li>
+                                <li>Hemat energi per beban kerja.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- KARTU 4: LIQUID COOLING TECH -->
+                    <div class="glass-panel p-4 rounded-xl space-y-3 flex flex-col justify-between border border-nvGreen/25 hover:border-nvGreen/60 transition-all group">
+                        <div>
+                            <div class="relative w-full h-40 rounded-lg overflow-hidden border border-gray-700/60 mb-3 bg-nvDark/90 flex items-center justify-center">
+                                <canvas id="strategi-3d-4" class="w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+                                <span class="absolute bottom-2 left-2 text-[9px] bg-black/70 text-nvGreen px-1.5 py-0.5 rounded border border-nvGreen/30 font-mono">Liquid Cooling System</span>
+                            </div>
+                            <h3 class="font-bold text-white text-sm">Liquid Cooling System</h3>
+                            <ul class="text-[11px] text-gray-300 space-y-1 mt-2 list-disc list-inside">
+                                <li>Teknologi pendingin cairan.</li>
+                                <li>Menurunkan temperatur server.</li>
+                                <li>Optimalisasi umur pakai chip.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 5: RISIKO & SOLUSI -->
+        <div id="modal-risiko" class="fixed inset-0 z-50 hidden modal-blur bg-black/80 flex items-center justify-center p-4">
+            <div class="glass-panel max-w-5xl w-full p-6 md:p-8 rounded-2xl border border-nvGreen/50 space-y-6 max-h-[90vh] overflow-y-auto relative">
+                <button onclick="closeModal('modal-risiko')" class="absolute top-4 right-4 text-gray-400 hover:text-nvGreen text-2xl"><i class="fa-solid fa-xmark"></i></button>
+
+                <div class="border-b border-gray-700/50 pb-4">
+                    <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-shield-halved text-nvGreen"></i> 5. Risiko, Kekurangan & Mitigasi
+                    </h2>
+                    <p class="text-xs text-gray-400 mt-1">Analisis kelemahan bisnis NVIDIA beserta gambar ilustrasi dan langkah penanggulangannya.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- KEKURANGAN & RISIKO DENGAN GAMBAR VISUAL -->
+                    <div class="space-y-4">
+                        <h3 class="font-bold text-red-400 text-sm flex items-center gap-2 border-b border-red-500/30 pb-2">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Kekurangan & Risiko Utama
+                        </h3>
+                        
+                        <div class="space-y-3 text-xs">
+                            <!-- Poin 1: TSMC -->
+                            <div class="p-3 bg-red-950/20 rounded-xl border border-red-500/30 space-y-2">
+                                <div class="font-bold text-white flex items-center justify-between">
+                                    <span>1. Ketergantungan Pabrik (TSMC)</span>
+                                    <span class="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded">Fisik</span>
+                                </div>
+                                <p class="text-gray-300">Nvidia tidak memiliki pabrik (fabless) dan bergantung 100% pada TSMC Taiwan untuk produksi chip canggih.</p>
+                                <div class="flex items-center gap-3 bg-red-900/20 p-2 rounded-lg border border-red-500/20">
+                                    <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=150&q=80" alt="Chip Wafer TSMC" class="w-14 h-14 rounded-md object-cover border border-red-500/40 flex-shrink-0" onerror="this.src='https://placehold.co/150x150/200000/ff4444?text=TSMC'">
+                                    <div class="text-[11px] text-red-300">
+                                        <strong>Contoh:</strong> Gempa bumi di Taiwan atau konflik politik dapat menghentikan suplai GPU AI global secara mendadak.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Poin 2: Geopolitik -->
+                            <div class="p-3 bg-red-950/20 rounded-xl border border-red-500/30 space-y-2">
+                                <div class="font-bold text-white flex items-center justify-between">
+                                    <span>2. Sanksi & Embargo Ekspor</span>
+                                    <span class="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded">Regulasi</span>
+                                </div>
+                                <p class="text-gray-300">Aturan pemerintah AS melarang penjualan GPU AI tercepat ke wilayah Tiongkok.</p>
+                                <div class="flex items-center gap-3 bg-red-900/20 p-2 rounded-lg border border-red-500/20">
+                                    <img src="https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=150&q=80" alt="Trade Border" class="w-14 h-14 rounded-md object-cover border border-red-500/40 flex-shrink-0" onerror="this.src='https://placehold.co/150x150/200000/ff4444?text=Embargo'">
+                                    <div class="text-[11px] text-red-300">
+                                        <strong>Contoh:</strong> Nvidia kehilangan potensi pendapatan miliaran dolar dari salah satu pasar teknologi terbesar dunia.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Poin 3: Harga Mahal -->
+                            <div class="p-3 bg-red-950/20 rounded-xl border border-red-500/30 space-y-2">
+                                <div class="font-bold text-white flex items-center justify-between">
+                                    <span>3. Harga Modal Tinggi & Kelangkaan</span>
+                                    <span class="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded">Pasar</span>
+                                </div>
+                                <p class="text-gray-300">Harga satu chip H100 dapat mencapai $30.000–$40.000+, menciptakan hambatan bagi pengembang kecil.</p>
+                                <div class="flex items-center gap-3 bg-red-900/20 p-2 rounded-lg border border-red-500/20">
+                                    <img src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=150&q=80" alt="Cost Expensive" class="w-14 h-14 rounded-md object-cover border border-red-500/40 flex-shrink-0" onerror="this.src='https://placehold.co/150x150/200000/ff4444?text=Cost'">
+                                    <div class="text-[11px] text-red-300">
+                                        <strong>Contoh:</strong> Startup riset kecil tidak mampu membeli ribuan GPU layaknya raksasa Big Tech (Meta/Google).
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Poin 4: Konsumsi Daya -->
+                            <div class="p-3 bg-red-950/20 rounded-xl border border-red-500/30 space-y-2">
+                                <div class="font-bold text-white flex items-center justify-between">
+                                    <span>4. Konsumsi Daya & Panas Ekstrem</span>
+                                    <span class="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded">Energi</span>
+                                </div>
+                                <p class="text-gray-300">Rak server GPU AI membutuhkan suplai listrik masif dan fasilitas sistem pendingin berbiaya tinggi.</p>
+                                <div class="flex items-center gap-3 bg-red-900/20 p-2 rounded-lg border border-red-500/20">
+                                    <img src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=150&q=80" alt="Data Center Power" class="w-14 h-14 rounded-md object-cover border border-red-500/40 flex-shrink-0" onerror="this.src='https://placehold.co/150x150/200000/ff4444?text=Power'">
+                                    <div class="text-[11px] text-red-300">
+                                        <strong>Contoh:</strong> Satu kluster server AI dapat memakai beban listrik setara ribuan rumah tangga secara simultan.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LANGKAH PENCEGAHAN / MITIGASI -->
+                    <div class="space-y-4">
+                        <h3 class="font-bold text-nvGreen text-sm flex items-center gap-2 border-b border-nvGreen/30 pb-2">
+                            <i class="fa-solid fa-shield text-nvGreen"></i> Solusi & Mitigasi
+                        </h3>
+
+                        <div class="space-y-3 text-xs">
+                            <div class="p-3 bg-nvGreen/5 rounded-xl border border-nvGreen/20">
+                                <div class="font-bold text-white">1. Diversifikasi Mitra Manufaktur</div>
+                                <p class="text-gray-300 mt-1">Menjajaki kerja sama pengecoran chip sekunder dengan Intel Foundry dan Samsung untuk membagi beban ketergantungan pada TSMC.</p>
+                            </div>
+
+                            <div class="p-3 bg-nvGreen/5 rounded-xl border border-nvGreen/20">
+                                <div class="font-bold text-white">2. Chip Spesifik Kepatuhan Regulasi</div>
+                                <p class="text-gray-300 mt-1">Merancang arsitektur chip khusus (seperti varian H20/L20) dengan spesifikasi yang disesuaikan agar tetap legal dijual di pasar Tiongkok.</p>
+                            </div>
+
+                            <div class="p-3 bg-nvGreen/5 rounded-xl border border-nvGreen/20">
+                                <div class="font-bold text-white">3. Arsitektur Efisiensi & Liquid Cooling</div>
+                                <p class="text-gray-300 mt-1">Mengadopsi pendingin cairan (liquid cooling) bawaan pada arsitektur Blackwell B200 untuk menekan konsumsi energi hingga 25x lebih hemat.</p>
+                            </div>
+
+                            <div class="p-3 bg-nvGreen/5 rounded-xl border border-nvGreen/20">
+                                <div class="font-bold text-white">4. Layanan Sewa Cloud (NVIDIA DGX Cloud)</div>
+                                <p class="text-gray-300 mt-1">Menyediakan platform komputasi AI berbasis langganan bulanan agar pengembang dapat mengakses GPU tanpa harus beli perangkat fisik mahal.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 6: CHART MARKET LIVE -->
+        <div id="modal-chart" class="fixed inset-0 z-50 hidden modal-blur bg-black/80 flex items-center justify-center p-4">
+            <div class="glass-panel max-w-5xl w-full p-6 md:p-8 rounded-2xl border border-nvGreen/50 space-y-4 max-h-[90vh] overflow-y-auto relative flex flex-col">
+                <button onclick="closeModal('modal-chart')" class="absolute top-4 right-4 text-gray-400 hover:text-nvGreen text-2xl"><i class="fa-solid fa-xmark"></i></button>
+
+                <div class="border-b border-gray-700/50 pb-2">
+                    <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-nvGreen"></i> 6. Live Market Chart (NASDAQ: NVDA)
+                    </h2>
+                </div>
+
+                <div class="w-full h-[450px] rounded-xl overflow-hidden border border-nvGreen/30">
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div id="tradingview_chart_modal" style="height:100%;width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                            new TradingView.widget({
+                                "autosize": true,
+                                "symbol": "NASDAQ:NVDA",
+                                "interval": "D",
+                                "timezone": "Etc/UTC",
+                                "theme": "dark",
+                                "style": "1",
+                                "locale": "id",
+                                "toolbar_bg": "#0b0f12",
+                                "enable_publishing": false,
+                                "allow_symbol_change": true,
+                                "container_id": "tradingview_chart_modal"
+                            });
+                        </script>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- THREE.JS 3D ANIMATION ENGINE -->
+    <script>
+        // --- 3D SCENE SETUP ---
+        const canvas = document.getElementById('bg-canvas');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x0b0f12, 0.045);
+        
+        // Camera
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 6.5;
+
+        // Renderer
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        // Container Group for Active Background Mode
+        const bgMasterGroup = new THREE.Group();
+        scene.add(bgMasterGroup);
+
+        // LIGHTING
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const pointLight = new THREE.PointLight(0x76B900, 2.5, 50);
+        pointLight.position.set(5, 5, 5);
+        scene.add(pointLight);
+
+        // --- BACKGROUND MODE: AI NEURAL NETWORK & GPU CORE MATRIX ---
+        const neuralGroup = new THREE.Group();
+        const nodeCount = 85;
+        const nodePositions = [];
+        const nodeVelocities = [];
+        const nodeGeo = new THREE.BufferGeometry();
+        const nodePosArray = new Float32Array(nodeCount * 3);
+
+        for (let i = 0; i < nodeCount; i++) {
+            const x = (Math.random() - 0.5) * 14;
+            const y = (Math.random() - 0.5) * 9;
+            const z = (Math.random() - 0.5) * 7;
+            nodePosArray[i * 3] = x;
+            nodePosArray[i * 3 + 1] = y;
+            nodePosArray[i * 3 + 2] = z;
+
+            nodePositions.push(new THREE.Vector3(x, y, z));
+            nodeVelocities.push(new THREE.Vector3(
+                (Math.random() - 0.5) * 0.012,
+                (Math.random() - 0.5) * 0.012,
+                (Math.random() - 0.5) * 0.012
+            ));
+        }
+        nodeGeo.setAttribute('position', new THREE.BufferAttribute(nodePosArray, 3));
+        const nodeMat = new THREE.PointsMaterial({
+            color: 0x76B900,
+            size: 0.11,
+            transparent: true,
+            opacity: 0.85
+        });
+        const neuralPoints = new THREE.Points(nodeGeo, nodeMat);
+        neuralGroup.add(neuralPoints);
+
+        // Dynamic Laser Synapses Lines
+        const maxConnections = nodeCount * nodeCount;
+        const linePositions = new Float32Array(maxConnections * 6);
+        const lineGeo = new THREE.BufferGeometry();
+        lineGeo.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+        const lineMat = new THREE.LineBasicMaterial({
+            color: 0x76B900,
+            transparent: true,
+            opacity: 0.22
+        });
+        const neuralLines = new THREE.LineSegments(lineGeo, lineMat);
+        neuralGroup.add(neuralLines);
+
+        // Subtle Rotating Wireframe GPU Processor Core in Background
+        const bgGpuCoreGroup = new THREE.Group();
+        const outerDie = new THREE.Mesh(
+            new THREE.BoxGeometry(2.4, 2.4, 0.35),
+            new THREE.MeshBasicMaterial({ color: 0x76B900, wireframe: true, transparent: true, opacity: 0.14 })
+        );
+        const innerSilicon = new THREE.Mesh(
+            new THREE.OctahedronGeometry(1.1, 1),
+            new THREE.MeshBasicMaterial({ color: 0x76B900, wireframe: true, transparent: true, opacity: 0.2 })
+        );
+        bgGpuCoreGroup.add(outerDie, innerSilicon);
+        neuralGroup.add(bgGpuCoreGroup);
+
+        bgMasterGroup.add(neuralGroup);
+
+        // INTERACTIVE MOUSE MOVEMENT
+        let mouseX = 0;
+        let mouseY = 0;
+        let targetX = 0;
+        let targetY = 0;
+
+        window.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX - window.innerWidth / 2) * 0.0012;
+            mouseY = (e.clientY - window.innerHeight / 2) * 0.0012;
+        });
+
+        // 3D BURST / HYPERDRIVE ANIMATION EFFECT FOR CLICK TRANSITIONS
+        let isTransitioning3D = false;
+        let transitionStartTime = 0;
+
+        function trigger3DEffect() {
+            isTransitioning3D = true;
+            transitionStartTime = clock.getElapsedTime();
+        }
+
+        // ANIMATION LOOP
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const elapsedTime = clock.getElapsedTime();
+
+            let speedMultiplier = 1.0;
+            if (isTransitioning3D) {
+                const progress = elapsedTime - transitionStartTime;
+                if (progress <= 2.0) {
+                    speedMultiplier = 4.5;
+                    const scalePulse = 1 + Math.sin(progress * Math.PI * 2) * 0.18;
+                    bgMasterGroup.scale.set(scalePulse, scalePulse, scalePulse);
+                } else {
+                    isTransitioning3D = false;
+                    bgMasterGroup.scale.set(1, 1, 1);
+                }
+            }
+
+            targetX += (mouseX - targetX) * 0.05;
+            targetY += (mouseY - targetY) * 0.05;
+
+            // Animate Neural Nodes & Dynamic Synapses
+            const posAttr = neuralPoints.geometry.attributes.position;
+            for (let i = 0; i < nodeCount; i++) {
+                nodePositions[i].addScaledVector(nodeVelocities[i], speedMultiplier);
+                if (Math.abs(nodePositions[i].x) > 7) nodeVelocities[i].x *= -1;
+                if (Math.abs(nodePositions[i].y) > 4.5) nodeVelocities[i].y *= -1;
+                if (Math.abs(nodePositions[i].z) > 3.5) nodeVelocities[i].z *= -1;
+
+                posAttr.setXYZ(i, nodePositions[i].x, nodePositions[i].y, nodePositions[i].z);
+            }
+            posAttr.needsUpdate = true;
+
+            let vertexIndex = 0;
+            const linePosAttr = neuralLines.geometry.attributes.position;
+            const connectDist = 2.6;
+
+            for (let i = 0; i < nodeCount; i++) {
+                for (let j = i + 1; j < nodeCount; j++) {
+                    const dist = nodePositions[i].distanceTo(nodePositions[j]);
+                    if (dist < connectDist) {
+                        linePosAttr.setXYZ(vertexIndex++, nodePositions[i].x, nodePositions[i].y, nodePositions[i].z);
+                        linePosAttr.setXYZ(vertexIndex++, nodePositions[j].x, nodePositions[j].y, nodePositions[j].z);
+                    }
+                }
+            }
+            neuralLines.geometry.setDrawRange(0, vertexIndex);
+            linePosAttr.needsUpdate = true;
+
+            bgGpuCoreGroup.rotation.x += 0.004 * speedMultiplier;
+            bgGpuCoreGroup.rotation.y += 0.006 * speedMultiplier;
+            neuralGroup.rotation.y = targetX * 1.4;
+            neuralGroup.rotation.x = targetY * 1.4;
+
+            renderer.render(scene, camera);
+        }
+
+        // --- LOBBY 3D NVIDIA AI CHIP ILLUSTRATION ---
+        function initLobbyChip3D() {
+            const chipCanvas = document.getElementById('lobby-chip-canvas');
+            if (!chipCanvas) return;
+
+            const chipScene = new THREE.Scene();
+            const chipCamera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+            chipCamera.position.set(0, 0.4, 4.4);
+
+            const chipRenderer = new THREE.WebGLRenderer({ canvas: chipCanvas, alpha: true, antialias: true });
+            chipRenderer.setSize(chipCanvas.clientWidth || 288, chipCanvas.clientHeight || 288);
+            chipRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            // Lighting for metallic silicon & gold pins
+            const cAmbient = new THREE.AmbientLight(0xffffff, 0.8);
+            chipScene.add(cAmbient);
+
+            const cDirLight1 = new THREE.DirectionalLight(0xffffff, 2.2);
+            cDirLight1.position.set(4, 6, 5);
+            chipScene.add(cDirLight1);
+
+            const cGreenLight = new THREE.PointLight(0x76B900, 3.5, 12);
+            cGreenLight.position.set(-2.5, 2, 3);
+            chipScene.add(cGreenLight);
+
+            const chipGroup = new THREE.Group();
+            chipGroup.rotation.x = 0.42;
+            chipGroup.rotation.y = -0.35;
+            chipScene.add(chipGroup);
+
+            // 1. Dark Emerald PCB Substrate Base
+            const pcbGeo = new THREE.BoxGeometry(2.3, 0.12, 2.3);
+            const pcbMat = new THREE.MeshStandardMaterial({
+                color: 0x0a1c12,
+                metalness: 0.65,
+                roughness: 0.35
+            });
+            const pcbMesh = new THREE.Mesh(pcbGeo, pcbMat);
+            chipGroup.add(pcbMesh);
+
+            // Glowing PCB Border Frame
+            const pcbWire = new THREE.LineSegments(
+                new THREE.EdgesGeometry(pcbGeo),
+                new THREE.LineBasicMaterial({ color: 0x76B900, transparent: true, opacity: 0.7 })
+            );
+            chipGroup.add(pcbWire);
+
+            // 2. Metallic Integrated Heat Spreader (IHS)
+            const ihsGeo = new THREE.BoxGeometry(1.65, 0.14, 1.65);
+            const ihsMat = new THREE.MeshStandardMaterial({
+                color: 0x1f2937,
+                metalness: 0.9,
+                roughness: 0.2
+            });
+            const ihsMesh = new THREE.Mesh(ihsGeo, ihsMat);
+            ihsMesh.position.y = 0.12;
+            chipGroup.add(ihsMesh);
+
+            // 3. Glowing Green Silicon Core Die (Dual-Die Blackwell Style)
+            const coreDieGeo = new THREE.BoxGeometry(0.46, 0.08, 0.96);
+            const coreDieMat = new THREE.MeshStandardMaterial({
+                color: 0x76B900,
+                emissive: 0x76B900,
+                emissiveIntensity: 0.75,
+                metalness: 0.4,
+                roughness: 0.15
+            });
+            const dieLeft = new THREE.Mesh(coreDieGeo, coreDieMat);
+            dieLeft.position.set(-0.27, 0.21, 0);
+            const dieRight = new THREE.Mesh(coreDieGeo, coreDieMat);
+            dieRight.position.set(0.27, 0.21, 0);
+            chipGroup.add(dieLeft, dieRight);
+
+            // HBM Memory Stacks flanking the silicon dies
+            const hbmGeo = new THREE.BoxGeometry(0.16, 0.07, 0.24);
+            const hbmMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.5, metalness: 0.8 });
+            [-0.32, 0, 0.32].forEach(zPos => {
+                const hbmL = new THREE.Mesh(hbmGeo, hbmMat);
+                hbmL.position.set(-0.64, 0.21, zPos);
+                const hbmR = new THREE.Mesh(hbmGeo, hbmMat);
+                hbmR.position.set(0.64, 0.21, zPos);
+                chipGroup.add(hbmL, hbmR);
+            });
+
+            // 4. Gold Connector Pins around all 4 edges
+            const pinGeo = new THREE.BoxGeometry(0.05, 0.05, 0.18);
+            const pinMat = new THREE.MeshStandardMaterial({
+                color: 0xfbbf24,
+                metalness: 0.95,
+                roughness: 0.15
+            });
+            for (let i = -0.95; i <= 0.95; i += 0.16) {
+                const pinFront = new THREE.Mesh(pinGeo, pinMat);
+                pinFront.position.set(i, -0.02, 1.18);
+                const pinBack = new THREE.Mesh(pinGeo, pinMat);
+                pinBack.position.set(i, -0.02, -1.18);
+
+                const pinLeft = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 0.05), pinMat);
+                pinLeft.position.set(-1.18, -0.02, i);
+                const pinRight = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 0.05), pinMat);
+                pinRight.position.set(1.18, -0.02, i);
+
+                chipGroup.add(pinFront, pinBack, pinLeft, pinRight);
+            }
+
+            // 5. Orbiting Energy Data Ring around the Chip
+            const energyRing = new THREE.Mesh(
+                new THREE.TorusGeometry(1.75, 0.018, 12, 80),
+                new THREE.MeshBasicMaterial({ color: 0x76B900, transparent: true, opacity: 0.5 })
+            );
+            energyRing.rotation.x = Math.PI / 2;
+            chipGroup.add(energyRing);
+
+            // Drag Interaction on Lobby Chip
+            let isChipDragging = false;
+            let prevChipMouse = { x: 0, y: 0 };
+
+            chipCanvas.addEventListener('mousedown', (e) => {
+                isChipDragging = true;
+                prevChipMouse = { x: e.clientX, y: e.clientY };
+            });
+            window.addEventListener('mouseup', () => { isChipDragging = false; });
+            window.addEventListener('mousemove', (e) => {
+                if (!isChipDragging) return;
+                chipGroup.rotation.y += (e.clientX - prevChipMouse.x) * 0.015;
+                chipGroup.rotation.x += (e.clientY - prevChipMouse.y) * 0.015;
+                prevChipMouse = { x: e.clientX, y: e.clientY };
+            });
+
+            // Touch Support for Mobile
+            chipCanvas.addEventListener('touchstart', (e) => {
+                if (e.touches.length > 0) {
+                    isChipDragging = true;
+                    prevChipMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                }
+            }, { passive: true });
+            window.addEventListener('touchend', () => { isChipDragging = false; });
+            chipCanvas.addEventListener('touchmove', (e) => {
+                if (!isChipDragging || e.touches.length === 0) return;
+                chipGroup.rotation.y += (e.touches[0].clientX - prevChipMouse.x) * 0.015;
+                chipGroup.rotation.x += (e.touches[0].clientY - prevChipMouse.y) * 0.015;
+                prevChipMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }, { passive: true });
+
+            const chipClock = new THREE.Clock();
+            function animateLobbyChip() {
+                requestAnimationFrame(animateLobbyChip);
+                const t = chipClock.getElapsedTime();
+                if (!isChipDragging) {
+                    chipGroup.rotation.y += 0.009;
+                    chipGroup.position.y = Math.sin(t * 2) * 0.08;
+                }
+                coreDieMat.emissiveIntensity = 0.65 + Math.sin(t * 3.5) * 0.25;
+                chipRenderer.render(chipScene, chipCamera);
+            }
+            animateLobbyChip();
+        }
+
+        window.onload = function() {
+            animate();
+            initLobbyChip3D();
+        };
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // --- INTERACTIVE RATIO CALCULATOR LOGIC ---
+        function loadRatioPreset(year) {
+            const presets = {
+                '2023': { rev: 26974, gross: 15356, net: 4368, assets: 41182, equity: 22101 },
+                '2024': { rev: 60922, gross: 44301, net: 29760, assets: 65728, equity: 42978 },
+                '2025': { rev: 126000, gross: 94500, net: 67000, assets: 110000, equity: 78000 }
+            };
+            const data = presets[year];
+            if (!data) return;
+            document.getElementById('sim-revenue').value = data.rev;
+            document.getElementById('sim-gross').value = data.gross;
+            document.getElementById('sim-net').value = data.net;
+            document.getElementById('sim-assets').value = data.assets;
+            document.getElementById('sim-equity').value = data.equity;
+            calculateRatios();
+        }
+
+        function calculateRatios() {
+            const rev = parseFloat(document.getElementById('sim-revenue').value) || 0;
+            const gross = parseFloat(document.getElementById('sim-gross').value) || 0;
+            const net = parseFloat(document.getElementById('sim-net').value) || 0;
+            const assets = parseFloat(document.getElementById('sim-assets').value) || 0;
+            const equity = parseFloat(document.getElementById('sim-equity').value) || 0;
+
+            const roa = assets > 0 ? ((net / assets) * 100).toFixed(2) + '%' : '0.00%';
+            const roe = equity > 0 ? ((net / equity) * 100).toFixed(2) + '%' : '0.00%';
+            const roi = (assets + equity) > 0 ? ((net / ((assets + equity) / 2)) * 100).toFixed(2) + '%' : '0.00%';
+            const npm = rev > 0 ? ((net / rev) * 100).toFixed(2) + '%' : '0.00%';
+            const gpm = rev > 0 ? ((gross / rev) * 100).toFixed(2) + '%' : '0.00%';
+
+            document.getElementById('res-roa').textContent = roa;
+            document.getElementById('res-roe').textContent = roe;
+            document.getElementById('res-roi').textContent = roi;
+            document.getElementById('res-npm').textContent = npm;
+            document.getElementById('res-gpm').textContent = gpm;
+        }
+
+        // --- TRANSITION & MODAL LOGIC ---
+        function triggerTransition(targetSectionId) {
+            trigger3DEffect();
+            const overlay = document.getElementById('transition-overlay');
+            if (overlay) overlay.classList.add('active');
+
+            setTimeout(() => {
+                const sections = ['lobby-section', 'portal-section'];
+                sections.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.classList.add('hidden');
+                });
+
+                const targetEl = document.getElementById(targetSectionId);
+                if (targetEl) targetEl.classList.remove('hidden');
+
+                if (overlay) overlay.classList.remove('active');
+            }, 2000);
+        }
+
+        // Helper Function untuk Membuat Modal 3D Interaktif pada 4 Kartu Strategi
+        function createInteractive3DCard(canvasId, createGeometryCallback) {
+            const containerCanvas = document.getElementById(canvasId);
+            if (!containerCanvas) return;
+
+            const scene3D = new THREE.Scene();
+            const camera3D = new THREE.PerspectiveCamera(45, containerCanvas.clientWidth / containerCanvas.clientHeight, 0.1, 100);
+            camera3D.position.set(0, 0, 4);
+
+            const renderer3D = new THREE.WebGLRenderer({ canvas: containerCanvas, alpha: true, antialias: true });
+            renderer3D.setSize(containerCanvas.clientWidth, containerCanvas.clientHeight);
+            renderer3D.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            const meshGroup = new THREE.Group();
+            createGeometryCallback(meshGroup);
+            scene3D.add(meshGroup);
+
+            // Lighting Realistis (Ambient + Multiple Directional Lights)
+            const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
+            dirLight.position.set(3, 5, 4);
+            scene3D.add(dirLight);
+
+            const greenLight = new THREE.PointLight(0x76B900, 3, 10);
+            greenLight.position.set(-2, -2, 2);
+            scene3D.add(greenLight);
+
+            const ambientLightCard = new THREE.AmbientLight(0xffffff, 0.8);
+            scene3D.add(ambientLightCard);
+
+            let isDragging = false;
+            let previousMousePosition = { x: 0, y: 0 };
+
+            containerCanvas.addEventListener('mousedown', () => { isDragging = true; });
+            window.addEventListener('mouseup', () => { isDragging = false; });
+            containerCanvas.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    const deltaMove = {
+                        x: e.clientX - previousMousePosition.x,
+                        y: e.clientY - previousMousePosition.y
+                    };
+                    meshGroup.rotation.y += deltaMove.x * 0.015;
+                    meshGroup.rotation.x += deltaMove.y * 0.015;
+                }
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+
+            function animateCard3D() {
+                requestAnimationFrame(animateCard3D);
+                if (!isDragging) {
+                    meshGroup.rotation.y += 0.008;
+                    meshGroup.rotation.x += 0.004;
+                }
+                renderer3D.render(scene3D, camera3D);
+            }
+            animateCard3D();
+        }
+
+        // Variable global untuk instance Chart.js Laporan Keuangan
+        let financialChartInstance = null;
+
+        // Render Historical Financial Chart (1999 - Present)
+        function renderFinancialChart() {
+            const ctx = document.getElementById('financialChart');
+            if (!ctx) return;
+
+            if (financialChartInstance) {
+                financialChartInstance.destroy();
+            }
+
+            financialChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['1999', '2005', '2010', '2015', '2020', '2022', '2023', '2024', '2025/2026'],
+                    datasets: [
+                        {
+                            label: 'Pendapatan Bersih (Revenue)',
+                            data: [158, 2010, 3326, 4682, 10918, 26914, 26974, 60922, 126000],
+                            borderColor: '#76B900',
+                            backgroundColor: 'rgba(118, 185, 0, 0.15)',
+                            fill: true,
+                            tension: 0.35,
+                            borderWidth: 3,
+                            pointBackgroundColor: '#76B900',
+                            pointRadius: 5,
+                            pointHoverRadius: 8
+                        },
+                        {
+                            label: 'Laba Bersih (Net Income)',
+                            data: [4, 89, 253, 631, 2796, 9752, 4368, 29760, 67000],
+                            borderColor: '#38bdf8',
+                            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                            fill: true,
+                            tension: 0.35,
+                            borderWidth: 2,
+                            pointBackgroundColor: '#38bdf8',
+                            pointRadius: 4,
+                            pointHoverRadius: 7
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 4000,
+                        easing: 'easeInOutQuart'
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#e5e7eb',
+                                font: { family: 'Inter', size: 11 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': $' + context.raw.toLocaleString() + ' Juta';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#9ca3af', font: { family: 'Inter', size: 10 } }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: {
+                                color: '#9ca3af',
+                                font: { family: 'Inter', size: 10 },
+                                callback: function(value) {
+                                    return '$' + (value >= 1000 ? (value / 1000) + 'B' : value + 'M');
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Close Modal
+        function closeModal(modalId) {
+            const targetModal = document.getElementById(modalId);
+            if (targetModal) {
+                targetModal.classList.add('hidden');
+            }
+        }
+
+        // Open Modal Module with 2-second delay & 3D Initialization
+        function openModule(modalId) {
+            trigger3DEffect();
+            const overlay = document.getElementById('transition-overlay');
+            if (overlay) overlay.classList.add('active');
+
+            setTimeout(() => {
+                if (overlay) overlay.classList.remove('active');
+                const targetModal = document.getElementById(modalId);
+                if (targetModal) {
+                    targetModal.classList.remove('hidden');
+
+                    if (modalId === 'modal-keuangan') {
+                        renderFinancialChart();
+                    } else if (modalId === 'modal-latar') {
+                        initLatar3D();
+                    } else if (modalId === 'modal-strategi') {
+                        initStrategi3DAll();
+                    }
+                }
+            }, 2000);
+        }
+
+        // Inisialisasi Model 3D Gedung NVIDIA Realistis di Modal Latar Belakang
+        let latar3DInitialized = false;
+        function initLatar3D() {
+            if (latar3DInitialized) return;
+            latar3DInitialized = true;
+            createInteractive3DCard('latar-3d-canvas', (group) => {
+                const bldgGeo = new THREE.CylinderGeometry(1.4, 1.6, 1.2, 6);
+                const bldgMat = new THREE.MeshStandardMaterial({
+                    color: 0x1f2937,
+                    roughness: 0.2,
+                    metalness: 0.85
+                });
+                const bldgMesh = new THREE.Mesh(bldgGeo, bldgMat);
+                group.add(bldgMesh);
+
+                const frameGeo = new THREE.CylinderGeometry(1.42, 1.62, 1.22, 6);
+                const frameMat = new THREE.MeshStandardMaterial({
+                    color: 0x76B900,
+                    wireframe: true,
+                    emissive: 0x76B900,
+                    emissiveIntensity: 0.6
+                });
+                group.add(new THREE.Mesh(frameGeo, frameMat));
+
+                const roofGeo = new THREE.ConeGeometry(1.3, 0.7, 6);
+                const roofMat = new THREE.MeshStandardMaterial({
+                    color: 0x38bdf8,
+                    transparent: true,
+                    opacity: 0.7,
+                    roughness: 0.1,
+                    metalness: 0.9
+                });
+                const roofMesh = new THREE.Mesh(roofGeo, roofMat);
+                roofMesh.position.y = 0.95;
+                group.add(roofMesh);
+            });
+        }
+
+        // Inisialisasi 4 Kartu 3D Realistis di Modal Strategi
+        let strategi3DInitialized = false;
+        function initStrategi3DAll() {
+            if (strategi3DInitialized) return;
+            strategi3DInitialized = true;
+
+            // Kartu 1: Data Center AI Server Rack
+            createInteractive3DCard('strategi-3d-1', (group) => {
+                const chassisGeo = new THREE.BoxGeometry(1.2, 1.8, 0.9);
+                const chassisMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.9, roughness: 0.25 });
+                group.add(new THREE.Mesh(chassisGeo, chassisMat));
+
+                for(let i = -0.65; i <= 0.65; i += 0.32) {
+                    const bladeGeo = new THREE.BoxGeometry(1.05, 0.22, 0.82);
+                    const bladeMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.3 });
+                    const bladeMesh = new THREE.Mesh(bladeGeo, bladeMat);
+                    bladeMesh.position.y = i;
+                    
+                    const ledGeo = new THREE.BoxGeometry(0.12, 0.06, 0.86);
+                    const ledMat = new THREE.MeshStandardMaterial({ color: 0x76B900, emissive: 0x76B900, emissiveIntensity: 0.9 });
+                    const ledMesh = new THREE.Mesh(ledGeo, ledMat);
+                    ledMesh.position.set(0.42, i, 0);
+
+                    group.add(bladeMesh, ledMesh);
+                }
+            });
+
+            // Kartu 2: GeForce Gaming RTX Dual Fan
+            createInteractive3DCard('strategi-3d-2', (group) => {
+                const shroudGeo = new THREE.BoxGeometry(2.1, 0.95, 0.4);
+                const shroudMat = new THREE.MeshStandardMaterial({ color: 0x111827, metalness: 0.85, roughness: 0.2 });
+                group.add(new THREE.Mesh(shroudGeo, shroudMat));
+
+                const fanGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.45, 20);
+                const fanMat = new THREE.MeshStandardMaterial({ color: 0x76B900, metalness: 0.6, roughness: 0.2 });
+                const fan1 = new THREE.Mesh(fanGeo, fanMat);
+                fan1.position.x = -0.52;
+                fan1.rotation.x = Math.PI / 2;
+
+                const fan2 = fan1.clone();
+                fan2.position.x = 0.52;
+                group.add(fan1, fan2);
+
+                const accentGeo = new THREE.BoxGeometry(0.3, 0.1, 0.42);
+                const accentMat = new THREE.MeshStandardMaterial({ color: 0x76B900, emissive: 0x76B900, emissiveIntensity: 0.6 });
+                const accent = new THREE.Mesh(accentGeo, accentMat);
+                accent.position.y = 0.45;
+                group.add(accent);
+            });
+
+            // Kartu 3: Efisiensi Daya (Green Core Engine)
+            createInteractive3DCard('strategi-3d-3', (group) => {
+                const coreGeo = new THREE.IcosahedronGeometry(0.85, 0);
+                const coreMat = new THREE.MeshStandardMaterial({ color: 0x76B900, metalness: 0.8, roughness: 0.15, emissive: 0x224400 });
+                group.add(new THREE.Mesh(coreGeo, coreMat));
+
+                const innerCore = new THREE.Mesh(
+                    new THREE.OctahedronGeometry(0.5, 0),
+                    new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.9 })
+                );
+                group.add(innerCore);
+
+                const ringGeo = new THREE.TorusGeometry(1.25, 0.035, 16, 80);
+                const ringMat = new THREE.MeshStandardMaterial({ color: 0x76B900, emissive: 0x76B900, emissiveIntensity: 0.5 });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.rotation.x = Math.PI / 3;
+                group.add(ring);
+            });
+
+            // Kartu 4: Liquid Cooling Tank System
+            createInteractive3DCard('strategi-3d-4', (group) => {
+                const tankGeo = new THREE.CylinderGeometry(0.72, 0.72, 1.65, 28);
+                const tankMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.45, roughness: 0.1, metalness: 0.9 });
+                group.add(new THREE.Mesh(tankGeo, tankMat));
+
+                const liquidGeo = new THREE.CylinderGeometry(0.66, 0.66, 1.25, 28);
+                const liquidMat = new THREE.MeshStandardMaterial({ color: 0x76B900, emissive: 0x76B900, emissiveIntensity: 0.6, roughness: 0.1 });
+                const liquidMesh = new THREE.Mesh(liquidGeo, liquidMat);
+                liquidMesh.position.y = -0.1;
+                group.add(liquidMesh);
+
+                const topCap = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 0.12, 28), new THREE.MeshStandardMaterial({ color: 0x111827, metalness: 0.9 }));
+                topCap.position.y = 0.85;
+                const botCap = topCap.clone();
+                botCap.position.y = -0.85;
+                group.add(topCap, botCap);
+            });
+        }
+    </script>
+    <footer style="text-align:center; padding:20px; color:#888; font-size:14px;">
+        Dibuat oleh: Muhammad Farhan Aunurrofiq
+    </footer>
+</body>
+</html>
